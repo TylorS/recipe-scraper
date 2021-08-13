@@ -1,0 +1,14 @@
+{
+  "diff": true,
+  "require": [
+    "esbuild-register",
+    "tsconfig-paths/register",
+    "source-map-support/register"
+  ],
+  "extension": [
+    "ts"
+  ],
+  "spec": [
+    "src/**/*.test.ts"
+  ]
+}

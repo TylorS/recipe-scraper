@@ -1,0 +1,145 @@
+version: 2.1
+description: Provide common CircleCI patterns used within Seasoned node projects
+
+orbs:
+  node:
+    orbs:
+      node: circleci/node@2.0.3
+    executors:
+      node:
+        parameters:
+          version:
+            type: string
+            default: lts
+        docker:
+          - image: circleci/node:<<parameters.version>>
+
+    commands:
+      build-workspace:
+        description: Run build steps and persist to workspace
+        parameters:
+          # Utilize this configuration to run a build system to be persisted
+          # for the following steps in your workflow to utilize the build artifacts
+          # in parallel.
+          with-npm-run-build:
+            type: boolean
+            default: false
+          # Utilize this configuration to allow configuring multiple stages for your build system
+          # e.g. CI, QA, or Production
+          stage:
+            type: string
+            default: ci
+        steps:
+          - checkout
+          - node/install-packages:
+              with-cache: true
+              include-branch-in-cache-key: false
+              cache-version: v1
+              cache-key: package-lock.json
+          - run:
+              name: Type Checking
+              command: npm run typecheck
+          - when:
+              condition: << parameters.with-npm-run-build >>
+              steps:
+                - run:
+                    name: Build client
+                    command: 'npm run build:<<parameters.stage>>'
+          - persist_to_workspace:
+              root: ./
+              paths:
+                - ./*
+
+      with-workspace:
+        description: Run commands with workspace attached
+        parameters:
+          steps:
+            type: steps
+        steps:
+          - attach_workspace:
+              at: ./
+          - steps: << parameters.steps >>
+
+      audit:
+        steps:
+          - run: |
+                pwd
+                ls
+                npm version
+                for n in {1..5}; do
+                  audit=`npm --color always audit --production 2>&1`
+                  echo "$audit"
+                  if [[ "$audit" != *"ENOAUDIT"* ]]; then
+                    break
+                  fi
+                done
+
+    jobs:
+      build-workspace:
+        parameters:
+          executor:
+            type: string
+            default: node
+        executor: <<parameters.executor>>
+        steps:
+          - build-workspace
+
+      lint-workspace:
+        parameters:
+          executor:
+            type: string
+            default: node
+        executor: <<parameters.executor>>
+        steps:
+          - with-workspace:
+              steps:
+                - run: npm run lint
+
+      test-workspace:
+        parameters:
+          executor:
+            type: string
+            default: node
+        executor: <<parameters.executor>>
+        steps:
+          - with-workspace:
+              steps:
+                - run: npm run coverage
+
+      audit-workspace:
+        parameters:
+          executor:
+            type: string
+            default: node
+        executor: <<parameters.executor>>
+        steps:
+          - with-workspace:
+              steps:
+                - audit
+
+      audit-workspace-prod:
+        parameters:
+          executor:
+            type: string
+            default: node
+        executor: <<parameters.executor>>
+        steps:
+          - with-workspace:
+              steps:
+                - audit
+
+
+workflows:
+  version: 2.1
+  build-test:
+    jobs:
+      - node/build-workspace
+      - node/lint-workspace:
+          requires:
+            - node/build-workspace
+      - node/test-workspace:
+          requires:
+            - node/build-workspace
+      - node/audit-workspace:
+          requires:
+            - node/build-workspace
