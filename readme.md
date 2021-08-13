@@ -89,3 +89,36 @@ npm run lint:ts
 ```sh
 npm run lint:md
 ```
+
+## Architecture
+
+After reading
+[DDD Made Functional](https://pragprog.com/titles/swdddf/domain-modeling-made-functional/) and
+practicing FP w/ DDD for multiple years, I've come to a system pretty similar to Clean Architecture,
+but after working with some colleagues we've formalized the idea of a "composition" layer which
+stitches together multiple bounded contexts w/ their relevant infrastructure implementations.
+
+![Clean Architecture](./clean-architecture.png?raw=true)
+
+Listed from "bottom" to the "top" the layers are as following
+
+- Domain
+  - Responsible for the core data contracts that represent our domain
+  - Used as a shared abstraction between the application + infrastructure layer
+  - Usually types, sometimes some constructors or predicates/refinements
+- Application
+  - Responsible for algorithms and logic
+  - Unit-Tested
+  - Utilizes
+    [Dependency Inversion](https://javascript.plainenglish.io/decoupling-code-in-javascript-with-the-dependency-inversion-principle-6d23342b4aaa)
+    to lift side-effects away from the core logic, deferring such choices to the Infrastructure
+- Infrastructure
+  - Responsible for all side-effects, HTTP, persistence, etc
+  - Unit or Integration Tested
+  - Environment-aware
+- Composition
+  - Responsible for composing the other layers into a running whole.
+  - Integration/Functional testing
+
+This architecture accounts for its separation of concerns rigorously, which lends itself to testing
+and maintenance.
